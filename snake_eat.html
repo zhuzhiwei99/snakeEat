@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>贪吃蛇</title>
+    <link rel="shortcut icon" href="icon/小蛇蛇.svg">
+    <link rel="stylesheet" href="stylesheet.css">
+</head>
+<body>
+     
+    <div id="scoreBoard">
+        得分: 0
+    </div>
+    <div id="levelInfo">
+        <span class="level-info">关卡 ${level} | 目标:${targetScore}分 | 速度:${gameSpeed}ms</span>
+    </div>
+    <canvas id="gameCanvas" width="500" height="500"></canvas>
+    <div class="controls"> </div>
+    <div class="control-info">
+        按 N 键开始游戏<br>
+        方向键控制移动<br>
+        空格键暂停/继续
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gridSize = 20;
+        const tileCount = 25;
+        let gameSpeed = 250;
+        let level = 1;
+        let targetScore = 100;
+        
+        let snake = [{x: 10, y: 10}];
+        let foods = [];
+generateFood();
+const foodCount = 3;
+        let dx = 0;
+        let dy = 0;
+        let score = 0;
+        let gamePaused = false;
+        let gameLoop;
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === ' ' && !gamePaused) {
+                gamePaused = true;
+                clearInterval(gameLoop);
+            } else if (event.key === ' ' && gamePaused) {
+                gamePaused = false;
+                if (gameLoop) {
+                    // 移除自动启动游戏代码
+                }
+            }
+
+            if (!gamePaused) {
+                switch(event.key) {
+                    case 'ArrowUp': if (dy !== 1) { dx = 0; dy = -1; break; }
+                    case 'ArrowDown': if (dy !== -1) { dx = 0; dy = 1; break; }
+                    case 'ArrowLeft': if (dx !== 1) { dx = -1; dy = 0; break; }
+                    case 'ArrowRight': if (dx !== -1) { dx = 1; dy = 0; break; }
+                }
+            }
+        });
+
+        // 在updateGame函数中添加关卡信息更新
+        function updateGame() {
+        // 更新得分显示
+        document.getElementById('scoreBoard').innerHTML = `
+        得分: ${score}
+        `;
+            // 移动蛇头
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+
+            // 边界检测
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                gameOver();
+                return;
+            }
+
+            // 自身碰撞检测
+            for (let segment of snake) {
+                if (head.x === segment.x && head.y === segment.y) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            snake.unshift(head);
+
+            // 食物检测
+            let eatenIndex = -1;
+foods.forEach((foodItem, index) => {
+    if (head.x === foodItem.x && head.y === foodItem.y) {
+        eatenIndex = index;
+    }
+});
+if (eatenIndex !== -1) {
+                score += 10;
+                document.getElementById('scoreBoard').textContent = `得分: ${score}`;
+                foods.splice(eatenIndex, 1);
+generateFood();
+            } else {
+                snake.pop();
+            }
+
+            drawGame();
+        }
+
+        function drawGame() {
+            // 清空画布
+            // 绘制棋盘格背景
+for(let i = 0; i < tileCount; i++) {
+    for(let j = 0; j < tileCount; j++) {
+        ctx.fillStyle = (i + j) % 2 === 0 ? '#dddddd' : '#eeeeee';
+        ctx.fillRect(i * gridSize, j * gridSize, gridSize, gridSize);
+    }
+}
+
+// 绘制食物
+foods.forEach(foodItem => {
+    ctx.fillStyle = '#FF4500';
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2;
+    const foodSize = gridSize * (0.6 + Math.random()*0.2);
+    const offset = (gridSize - foodSize)/2;
+    ctx.beginPath();
+    ctx.roundRect(foodItem.x * gridSize + offset, foodItem.y * gridSize + offset, foodSize, foodSize, 4);
+    ctx.fill();
+    ctx.stroke();
+});
+
+// 绘制蛇
+            snake.forEach((segment, index) => {
+                ctx.fillStyle = index === 0 ? '#2ecc71' : '#27ae60';
+                if (index === 0) {
+                    // 绘制圆形蛇头
+                    ctx.beginPath();
+                    ctx.arc(segment.x * gridSize + gridSize/2, segment.y * gridSize + gridSize/2, gridSize/2 - 1, 0, Math.PI * 2);
+                    const gradient = ctx.createRadialGradient(
+                        segment.x * gridSize + gridSize/3,
+                        segment.y * gridSize + gridSize/3,
+                        2,
+                        segment.x * gridSize + gridSize/2,
+                        segment.y * gridSize + gridSize/2,
+                        gridSize/2
+                    );
+                    gradient.addColorStop(0, '#27ae60');
+                    gradient.addColorStop(1, '#1d8348');
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    
+                     // 添加蛇眼
+        let eyeX, eyeY;
+        switch (true) {
+            case dx === 1 && dy === 0: // 向右移动
+                eyeX = segment.x * gridSize + gridSize * 0.8;
+                eyeY = segment.y * gridSize + gridSize / 2;
+                break;
+            case dx === -1 && dy === 0: // 向左移动
+                eyeX = segment.x * gridSize + gridSize * 0.2;
+                eyeY = segment.y * gridSize + gridSize / 2;
+                break;
+            case dx === 0 && dy === 1: // 向下移动
+                eyeX = segment.x * gridSize + gridSize / 2;
+                eyeY = segment.y * gridSize + gridSize * 0.8;
+                break;
+            case dx === 0 && dy === -1: // 向上移动
+                eyeX = segment.x * gridSize + gridSize / 2;
+                eyeY = segment.y * gridSize + gridSize * 0.2;
+                break;
+        }
+        ctx.beginPath();
+        ctx.arc(eyeX, eyeY, 3, 0, Math.PI * 2);
+        ctx.fillStyle = 'white';
+        ctx.fill();
+                } else {
+                    // 身体保持圆角矩形渐变效果
+                    const bodyGradient = ctx.createLinearGradient(
+                        segment.x * gridSize, 
+                        segment.y * gridSize,
+                        segment.x * gridSize + gridSize,
+                        segment.y * gridSize + gridSize
+                    );
+                    bodyGradient.addColorStop(0, '#27ae60');
+                    bodyGradient.addColorStop(1, '#1d8348');
+                    ctx.fillStyle = bodyGradient;
+                    ctx.beginPath();
+                    ctx.roundRect(segment.x * gridSize, segment.y * gridSize, gridSize-2, gridSize-2, 4);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function generateFood() {
+            const currentFoodCount = Math.max(1, Math.floor(Math.random() * 5));
+            let attempts = 0;
+while (foods.length < currentFoodCount && attempts < 100) {
+    const newFood = {
+        x: Math.floor(Math.random() * tileCount),
+        y: Math.floor(Math.random() * tileCount)
+    };
+    
+    if (!snake.some(segment => segment.x === newFood.x && segment.y === newFood.y) &&
+        !foods.some(foodItem => foodItem.x === newFood.x && foodItem.y === newFood.y)) {
+        foods.push(newFood);
+    }
+    attempts++;
+}
+        }
+
+        function gameOver() {
+            // 移除已存在的对话框
+            const existingDialog = document.querySelector('div[style*="z-index: 1000"]');
+            if (existingDialog) existingDialog.remove();
+            
+            clearInterval(gameLoop);
+            
+            const resultDialog = document.createElement('div');
+            resultDialog.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(52, 73, 94, 0.95);
+                color: white;
+                padding: 30px 50px;
+                border-radius: 15px;
+                text-align: center;
+                z-index: 1000;
+                box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            `;
+
+            resultDialog.innerHTML = `
+                <h2 style="margin:0 0 20px 0;color:#e74c3c">游戏结束！得分: ${score}</h2>
+                <div style="display: flex; gap: 20px; justify-content: center;">
+                    <button id="replayBtn" style="
+                        padding: 10px 25px;
+                        background: #27ae60;
+                        border: none;
+                        border-radius: 5px;
+                        color: white;
+                        cursor: pointer;">
+                        重玩本关
+                    </button>
+                    <button id="nextAfterFailBtn" style="
+                        padding: 10px 25px;
+                        background: #3498db;
+                        border: none;
+                        border-radius: 5px;
+                        color: white;
+                        cursor: pointer;">
+                        进入下一关
+                    </button>
+                </div>
+            `;
+
+            document.body.appendChild(resultDialog);
+
+            document.getElementById('replayBtn').onclick = () => {
+                // 彻底移除对话框
+                resultDialog.parentNode.removeChild(resultDialog);
+                
+                // 重置并启动新游戏
+                resetGame();
+showLevelUpMessage();
+                gamePaused = false;
+                // 移除自动启动游戏代码
+                
+                // 强制聚焦画布
+                canvas.focus();
+            };
+
+            document.getElementById('nextAfterFailBtn').onclick = () => {
+                resultDialog.remove();
+                const levels = generateLevels();
+                if (level < levels.length) {
+                    level++;
+                    gameSpeed = levels[level-1].speed;
+            level = levels[level-1].level;
+                    targetScore = levels[level-1].target;
+                }
+                showLevelUpMessage();
+                resetGame();
+showLevelUpMessage();
+                // 移除自动启动游戏代码
+            };
+        }
+
+        function resetGame() {
+    document.getElementById('levelInfo').innerHTML = `<span class='level-info'>关卡 ${level} | 目标: ${targetScore}分 | 速度: ${gameSpeed}ms</span>`;
+            // 清除旧游戏循环
+            if (gameLoop) {
+                clearInterval(gameLoop);
+                gameLoop = null;
+            }
+            
+            // 重置游戏参数
+            snake = [{x: 10, y: 10}];
+            foods = [];
+            generateFood();
+            dx = 0;  // 初始化方向
+            dy = 0;
+            score = 0;
+            gamePaused = false;
+            document.getElementById('scoreBoard').textContent = '得分: 0';
+            
+            // 强制重绘画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGame();
+        }
+
+        // 键盘控制初始化
+        // 独立N键事件监听
+        document.addEventListener('keydown', (event) => {
+        if (event.key.toLowerCase() === 'n' && !gameLoop) {
+        dx = 1;
+        dy = 0;
+        gamePaused = false;
+        gameLoop = setInterval(updateGame, gameSpeed);
+        }
+        });
+        
+        // 将关卡选择器移动到右侧控制区域
+        const controlsDiv = document.querySelector('.controls');
+        const levelSelectDiv = document.createElement('div');
+        levelSelectDiv.innerHTML = `
+        <select id="levelSelect" class="level-select">
+        <option value="0">请选择关卡</option>
+        </select>
+        `;
+        controlsDiv.insertBefore(levelSelectDiv, controlsDiv.firstChild);
+        // 在得分更新后添加关卡检测
+        if (score >= targetScore) {
+            // 暂停游戏并显示选择对话框
+            gamePaused = true;
+            clearInterval(gameLoop);
+            showLevelChoiceDialog();
+            document.getElementById('levelInfo').innerHTML = `<span class='level-info'>关卡 ${level} | 目标:${targetScore}分 | 速度:${gameSpeed}ms</span>`;
+        }
+// 添加关卡提示函数
+function showLevelUpMessage() {
+    document.getElementById('levelInfo').innerHTML = `<span class='level-info'>关卡 ${level} | 目标:${targetScore}分 | 速度:${gameSpeed}ms</span>`;
+    const messageBox = document.createElement('div');
+    messageBox.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(52, 73, 94, 0.95);
+        color: white;
+        padding: 20px 40px;
+        border-radius: 10px;
+        text-align: center;
+        animation: zoomIn 0.5s;
+        z-index: 100;
+        box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    `;
+    messageBox.innerHTML = `
+        <h2 style="margin:0 0 10px 0;color:#2ecc71">进入第 ${level} 关！</h2>
+        <p style="margin:0">目标分数：${targetScore}</p>
+        <p style="margin:10px 0 0 0;font-size:0.9em;color:#bdc3c7">当前食物分值：${10 + (level-1)*2} 分</p>
+    `;
+    document.body.appendChild(messageBox);
+    setTimeout(() => {
+        messageBox.style.animation = 'fadeOut 0.5s forwards';
+        setTimeout(() => messageBox.remove(), 500);
+    }, 2000);
+}
+
+
+
+
+// 生成100个关卡配置
+const backgroundImages = [
+    'fig/345816511_0_final.png',
+    'fig/345816821_0_final.png',
+    'fig/345816822_0_final.png',
+    'fig/345816823_0_final.png',
+    'fig/345816825_0_final.png',
+    'fig/345817031_0_final.png',
+    'fig/345817032_0_final.png',
+    'fig/345817035_0_final.png',
+    'fig/345817039_0_final.png',
+    'fig/345817232_0_final.png',
+    'fig/345817236_0_final.png',
+    'fig/345817244_0_final.png',
+    'fig/345817506_0_final.png',
+    'fig/345817510_0_final.png',
+    'fig/345817514_0_final.png',
+    'fig/345817518_0_final.png',
+    'fig/345817842_0_final.png',
+    'fig/345817846_0_final.png',
+    'fig/345817850_0_final.png',
+    'fig/345817854_0_final.png',
+    'fig/345818153_0_final.png',
+    'fig/345818162_0_final.png',
+    'fig/345818170_0_final.png',
+    'fig/345818178_0_final.png'
+];
+
+function generateLevels() {
+    const levels = [];
+    let baseTarget = 100;
+    let baseSpeed = 250;
+    
+    for (let i = 0; i < 100; i++) {
+        levels.push({
+            level: i+1,
+            target: Math.round(baseTarget * (1+i)),
+            speed: Math.round(baseSpeed - i*2.4 ),
+            background: backgroundImages[Math.floor(Math.random() * backgroundImages.length)]
+        });
+    }
+    return levels;
+}
+
+function preloadBackgroundImages() {
+    backgroundImages.forEach(img => {
+        new Image().src = img;
+    });
+}
+
+const initLevelSelect = () => {
+    preloadBackgroundImages();
+    const levels = generateLevels();
+    const levelSelect = document.getElementById('levelSelect');
+    
+    // 清空现有选项
+    levelSelect.innerHTML = '<option value="0">请选择关卡</option>';
+    
+    // 添加新选项
+    levels.forEach((level, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `关卡 ${index + 1} (目标: ${level.target}分)`;
+        levelSelect.appendChild(option);
+    });
+    
+    // 移除旧事件监听器
+    levelSelect.removeEventListener('change', handleLevelChange);
+    
+    // 添加新事件监听器
+    levelSelect.addEventListener('change', handleLevelChange);
+};
+
+const handleLevelChange = (e) => {
+    const selectedIndex = parseInt(e.target.value);
+    const levels = generateLevels();
+    const selectedLevel = levels[selectedIndex];
+    if (selectedLevel) {
+        gameSpeed = selectedLevel.speed;
+        targetScore = selectedLevel.target;
+        level = selectedIndex + 1;
+        document.body.style.backgroundImage = `url('${selectedLevel.background}')`;
+document.getElementById('levelInfo').innerHTML = `<span class='level-info'>关卡 ${level} | 目标:${targetScore}分 | 速度:${gameSpeed}ms</span>`;
+        resetGame();
+showLevelUpMessage();
+    }
+};
+
+// 初始化调用
+initLevelSelect();
+
+document.addEventListener('DOMContentLoaded', () => {
+    initLevelSelect();
+    handleLevelChange({target: document.getElementById('levelSelect')});
+    dx = 0;
+    dy = 0;
+});
+</script>
+</body>
+</html>
