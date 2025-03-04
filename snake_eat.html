@@ -47,11 +47,8 @@ const foodCount = 3;
                 clearInterval(gameLoop);
             } else if (event.key === ' ' && gamePaused) {
                 gamePaused = false;
-                if (gameLoop) {
-                    // 移除自动启动游戏代码
-                }
+                gameLoop = setInterval(updateGame, gameSpeed);
             }
-
             if (!gamePaused) {
                 switch(event.key) {
                     case 'ArrowUp': if (dy !== 1) { dx = 0; dy = -1; break; }
